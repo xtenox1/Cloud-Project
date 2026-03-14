@@ -5,13 +5,16 @@ import os
 app = Flask(__name__)
 app.secret_key = "cloudproject123"
 
-UPLOAD_FOLDER = "uploads"
-
+# استخدام مسار مطلق لمجلد التحميل
+UPLOAD_FOLDER = os.path.join(os.getcwd(), "uploads")
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
+# استخدام مسار مطلق لقاعدة البيانات
+DB_PATH = os.path.join(os.getcwd(), "database.db")
+
 def init_db():
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
     c.execute("""
@@ -36,22 +39,18 @@ def init_db():
 
 init_db()
 
-
 @app.route("/")
 def home():
     if "user" not in session:
         return redirect("/login")
 
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-
     c.execute("SELECT * FROM files")
     files = c.fetchall()
-
     conn.close()
 
     return render_template("home.html", files=files)
-
 
 @app.route("/register", methods=["GET","POST"])
 def register():
@@ -59,12 +58,10 @@ def register():
         username = request.form["username"]
         password = request.form["password"]
 
-        conn = sqlite3.connect("database.db")
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-
         c.execute("INSERT INTO users(username,password,role) VALUES(?,?,?)",
                   (username,password,"user"))
-
         conn.commit()
         conn.close()
 
@@ -72,21 +69,17 @@ def register():
 
     return render_template("register.html")
 
-
 @app.route("/login", methods=["GET","POST"])
 def login():
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
 
-        conn = sqlite3.connect("database.db")
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-
         c.execute("SELECT * FROM users WHERE username=? AND password=?",
                   (username,password))
-
         user = c.fetchone()
-
         conn.close()
 
         if user:
@@ -95,95 +88,78 @@ def login():
 
             if user[3] == "admin":
                 return redirect("/admin")
-
             return redirect("/")
 
     return render_template("login.html")
-
 
 @app.route("/upload", methods=["POST"])
 def upload():
     if "user" not in session:
         return redirect("/login")
 
-    file = request.files["file"]
-    filename = file.filename
+    file = request.files.get("file")
+    if file and file.filename:
+        filename = file.filename
+        file.save(os.path.join(UPLOAD_FOLDER, filename))
 
-    file.save(os.path.join(UPLOAD_FOLDER, filename))
-
-    conn = sqlite3.connect("database.db")
-    c = conn.cursor()
-
-    c.execute("INSERT INTO files(filename,user) VALUES(?,?)",
-              (filename,session["user"]))
-
-    conn.commit()
-    conn.close()
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("INSERT INTO files(filename,user) VALUES(?,?)",
+                  (filename, session["user"]))
+        conn.commit()
+        conn.close()
 
     return redirect("/")
-
 
 @app.route("/download/<filename>")
 def download(filename):
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
-
 
 @app.route("/delete/<int:file_id>")
 def delete(file_id):
     if session.get("role") != "admin":
         return "Access denied"
 
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-
     c.execute("DELETE FROM files WHERE id=?",(file_id,))
     conn.commit()
-
     conn.close()
 
     return redirect("/admin")
 
-
 @app.route("/search")
 def search():
-    query = request.args.get("q")
-
-    conn = sqlite3.connect("database.db")
+    query = request.args.get("q", "")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-
-    c.execute("SELECT * FROM files WHERE filename LIKE ?",('%'+query+'%',))
+    c.execute("SELECT * FROM files WHERE filename LIKE ?", ('%'+query+'%',))
     files = c.fetchall()
-
     conn.close()
 
     return render_template("home.html", files=files)
-
 
 @app.route("/admin")
 def admin():
     if session.get("role") != "admin":
         return "Access denied"
 
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-
     c.execute("SELECT * FROM users")
     users = c.fetchall()
-
     c.execute("SELECT * FROM files")
     files = c.fetchall()
-
     conn.close()
 
     return render_template("admin.html", users=users, files=files)
-
 
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/login")
 
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # استخدام متغير البيئة PORT من Render
+    # استخدام المنفذ الذي توفره Render
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
