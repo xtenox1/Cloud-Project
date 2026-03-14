@@ -1,0 +1,39 @@
+<h2>Cloud File Sharing</h2>
+
+<form action="/upload" method="post" enctype="multipart/form-data">
+
+<input type="file" name="file">
+
+<button>Upload</button>
+
+</form>
+
+
+<form action="/search">
+
+<input name="q" placeholder="Search files">
+
+<button>Search</button>
+
+</form>
+
+
+<h3>Files</h3>
+
+<ul>
+
+{% for file in files %}
+
+<li>
+
+{{file[1]}} uploaded by {{file[2]}}
+
+<a href="/download/{{file[1]}}">Download</a>
+
+</li>
+
+{% endfor %}
+
+</ul>
+
+<a href="/logout">Logout</a>
