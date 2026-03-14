@@ -39,7 +39,6 @@ init_db()
 
 @app.route("/")
 def home():
-
     if "user" not in session:
         return redirect("/login")
 
@@ -56,9 +55,7 @@ def home():
 
 @app.route("/register", methods=["GET","POST"])
 def register():
-
     if request.method == "POST":
-
         username = request.form["username"]
         password = request.form["password"]
 
@@ -78,9 +75,7 @@ def register():
 
 @app.route("/login", methods=["GET","POST"])
 def login():
-
     if request.method == "POST":
-
         username = request.form["username"]
         password = request.form["password"]
 
@@ -108,7 +103,6 @@ def login():
 
 @app.route("/upload", methods=["POST"])
 def upload():
-
     if "user" not in session:
         return redirect("/login")
 
@@ -136,7 +130,6 @@ def download(filename):
 
 @app.route("/delete/<int:file_id>")
 def delete(file_id):
-
     if session.get("role") != "admin":
         return "Access denied"
 
@@ -153,7 +146,6 @@ def delete(file_id):
 
 @app.route("/search")
 def search():
-
     query = request.args.get("q")
 
     conn = sqlite3.connect("database.db")
@@ -169,7 +161,6 @@ def search():
 
 @app.route("/admin")
 def admin():
-
     if session.get("role") != "admin":
         return "Access denied"
 
@@ -193,4 +184,6 @@ def logout():
     return redirect("/login")
 
 
-app.run(debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))  # استخدام متغير البيئة PORT من Render
+    app.run(host="0.0.0.0", port=port)
